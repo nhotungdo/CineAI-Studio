@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cineai-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: cineai_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password_here
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/seed/01_initial_schema.sql:/docker-entrypoint-initdb.d/01_initial_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cineai_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: cineai-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend-api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: cineai-backend-api
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DATABASE_URL=Server=postgres;Port=5432;Database=cineai_db;User Id=postgres;Password=postgres_password_here;
+      - REDIS_CONNECTION_STRING=redis:6379
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    container_name: cineai-worker
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - DATABASE_URL=Server=postgres;Port=5432;Database=cineai_db;User Id=postgres;Password=postgres_password_here;
+      - REDIS_CONNECTION_STRING=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend/cineai-web
+      dockerfile: Dockerfile
+    container_name: cineai-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:5000/api
+      - NEXT_PUBLIC_SIGNALR_URL=http://localhost:5000/hubs/video-generation
+    depends_on:
+      - backend-api
+
+volumes:
+  postgres_data:
+  redis_data:

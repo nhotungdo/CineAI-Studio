@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-CineAI.Worker-3a02893d-88b8-4cea-a25b-b9e3812ff670</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\backend\CineAI.Application\CineAI.Application.csproj" />
+    <ProjectReference Include="..\..\backend\CineAI.Infrastructure\CineAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\backend\CineAI.Domain\CineAI.Domain.csproj" />
+    <ProjectReference Include="..\..\services\CineAI.Video\CineAI.Video.csproj" />
+    <ProjectReference Include="..\..\services\CineAI.Storage\CineAI.Storage.csproj" />
+    <ProjectReference Include="..\..\services\CineAI.Media\CineAI.Media.csproj" />
+  </ItemGroup>
+</Project>

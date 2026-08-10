@@ -1,0 +1,49 @@
+# .gitignore for CineAI Studio
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build & Output directories
+bin/
+obj/
+out/
+dist/
+build/
+.next/
+node_modules/
+
+# Logs & Temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+temp/
+tmp/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.production.local
+appsettings.Development.json
+appsettings.Local.json
+
+# Storage & Uploads
+/uploads/
+/media_output/
+*.mp4
+*.webm
+*.png
+*.jpg
+*.jpeg
+
+# OS metadata
+.DS_Store
+Thumbs.db
