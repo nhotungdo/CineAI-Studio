@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Wand2, ArrowRight } from "lucide-react";
 import { orchestrateDirector, createProject, refinePrompt } from "@/lib/api";
@@ -27,11 +27,25 @@ interface OrchestrationData {
 function CreateVideoForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialIdea = searchParams.get("idea") || "Phố cổ Hà Nội ban đêm với mưa lún phún và ánh đèn neon rực rỡ.";
 
-  const [idea, setIdea] = useState(initialIdea);
+  const [idea, setIdea] = useState("");
   const [duration, setDuration] = useState(30);
   const [aspectRatio, setAspectRatio] = useState("9:16");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const pendingIdea = sessionStorage.getItem("cineai_pending_idea");
+      if (pendingIdea) {
+        setIdea(pendingIdea);
+        sessionStorage.removeItem("cineai_pending_idea");
+        return;
+      }
+    }
+    const urlIdea = searchParams.get("idea");
+    if (urlIdea) {
+      setIdea(urlIdea);
+    }
+  }, [searchParams]);
   const [style, setStyle] = useState("Cinematic");
   const [isLoading, setIsLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);

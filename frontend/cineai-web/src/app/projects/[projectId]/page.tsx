@@ -131,7 +131,7 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ pro
           setScenes(prev => prev.map(sc => {
             if (sc.id === sceneId) {
               const isDone = opStatus.isDone;
-              const video = isDone ? opStatus.videoUrl || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" : null;
+              const video = isDone ? opStatus.videoUrl || null : null;
               if (isDone && video) setActivePreviewVideo(video);
 
               return {

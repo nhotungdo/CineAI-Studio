@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5140/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export async function fetchProjects() {
   try {
@@ -79,7 +79,7 @@ export async function startVideoGeneration(prompt: string, durationSeconds: numb
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        model: "veo-3.1-generate-preview",
+        model: "google/veo-3.1-fast",
         aspectRatio,
         durationSeconds,
       }),
@@ -96,6 +96,18 @@ export async function startVideoGeneration(prompt: string, durationSeconds: numb
 export async function checkOperationStatus(operationId: string) {
   try {
     const res = await fetch(`${API_BASE}/Video/operation/${operationId}`, { cache: "no-store" });
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Graceful handling when backend API is offline
+  }
+  return null;
+}
+
+export async function checkJobStatus(jobId: string) {
+  try {
+    const res = await fetch(`${API_BASE}/Video/jobs/${jobId}`, { cache: "no-store" });
     if (res.ok) {
       return await res.json();
     }

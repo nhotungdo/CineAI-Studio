@@ -1,26 +1,10 @@
 "use client";
 
-import Image from "next/image";
+import { LayoutTemplate, Plus } from "lucide-react";
+import Link from "next/link";
 
 export default function TemplatesPage() {
-  const templates = [
-    {
-      id: "tpl-1",
-      title: "Hà Nội Đêm Neon Cinematic",
-      genre: "Documentary",
-      duration: "30s",
-      aspectRatio: "9:16",
-      thumbnail: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80"
-    },
-    {
-      id: "tpl-2",
-      title: "Cyberpunk Future City",
-      genre: "Sci-Fi",
-      duration: "15s",
-      aspectRatio: "16:9",
-      thumbnail: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=800&q=80"
-    }
-  ];
+  const templates: any[] = [];
 
   return (
     <div className="space-y-8">
@@ -29,22 +13,25 @@ export default function TemplatesPage() {
         <p className="text-xs text-zinc-400 mt-1">Khởi tạo nhanh kịch bản phim điện ảnh với các mẫu câu lệnh prompt chuẩn Veo 3.1.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {templates.map((tpl) => (
-          <div key={tpl.id} className="studio-panel studio-panel-hover overflow-hidden transition-all group p-4 space-y-3">
-            <div className="relative aspect-video bg-[#09090b] rounded-[10px] overflow-hidden border border-[#27272a]">
-              <Image src={tpl.thumbnail} alt={tpl.title} fill className="object-cover" />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white font-display">{tpl.title}</h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#a78bfa]">
-                {tpl.genre} • {tpl.duration}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      {templates.length === 0 ? (
+        <div className="p-12 studio-panel text-center flex flex-col items-center justify-center space-y-3">
+          <LayoutTemplate className="w-10 h-10 text-zinc-600" />
+          <h3 className="text-sm font-semibold text-white font-display">Chưa Có Mẫu Phim Nào</h3>
+          <p className="text-xs text-zinc-500 max-w-sm">Hiện chưa có mẫu kịch bản có sẵn. Bạn có thể bắt đầu sáng tạo bằng cách tự nhập ý tưởng mới.</p>
+          <Link
+            href="/create"
+            className="mt-2 px-4 py-2 rounded-[8px] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-[#7c3aed]/20"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Tạo Kịch Bản Mới</span>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Templates list when available */}
+        </div>
+      )}
     </div>
   );
 }
+

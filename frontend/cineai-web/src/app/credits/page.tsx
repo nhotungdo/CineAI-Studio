@@ -1,8 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Sparkles, Check, Zap } from "lucide-react";
+import { fetchUserCredits } from "@/lib/api";
 
 export default function CreditsPage() {
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadCredit() {
+      setIsLoading(true);
+      const data = await fetchUserCredits();
+      if (data && typeof data.balance === "number") {
+        setBalance(data.balance);
+      }
+      setIsLoading(false);
+    }
+    loadCredit();
+  }, []);
+
   const plans = [
     { name: "Starter Studio", credits: 250, price: "199.000 VNĐ", features: ["25 Veo 3.1 Scenes", "Gemini 3.1 Pro AI Director", "720p Video Export"] },
     { name: "Pro Director", credits: 1240, price: "699.000 VNĐ", popular: true, features: ["120 Veo 3.1 Scenes", "Character Consistency (3 Ref Images)", "1080p Full HD Export", "Audio & Music Included"] },
@@ -23,12 +40,14 @@ export default function CreditsPage() {
           </div>
           <div>
             <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider">Current Balance</span>
-            <h2 className="text-2xl font-semibold text-white font-mono">1,240 ✦ Credits</h2>
+            <h2 className="text-2xl font-semibold text-white font-mono">
+              {isLoading ? "..." : balance !== null ? `${balance.toLocaleString()} ✦ Credits` : "0 ✦ Credits"}
+            </h2>
           </div>
         </div>
 
         <span className="px-3 py-1 rounded-full bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#a78bfa] text-xs font-mono">
-          Pro Plan Active
+          Studio Plan Active
         </span>
       </div>
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Image as ImageIcon, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Image as ImageIcon, X, User } from "lucide-react";
 import Image from "next/image";
-import { createCharacter } from "@/lib/api";
+import { createCharacter, fetchCharacters } from "@/lib/api";
 
 interface CharacterItem {
   id: string;
@@ -17,20 +17,8 @@ interface CharacterItem {
 }
 
 export default function CharactersPage() {
-  const [characters, setCharacters] = useState<CharacterItem[]>([
-    {
-      id: "char-1",
-      name: "Alex Vance",
-      age: 28,
-      gender: "Male",
-      appearance: "Gương mặt góc cạnh, ánh mắt cuốn hút, xăm mỏng bên thái dương.",
-      clothing: "Áo khoác da đen khóa kim loại.",
-      style: "Cinematic Realistic",
-      referenceImages: [
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80"
-      ]
-    }
-  ]);
+  const [characters, setCharacters] = useState<CharacterItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState("");
@@ -40,6 +28,40 @@ export default function CharactersPage() {
   const [clothing, setClothing] = useState("");
   const [refUrl, setRefUrl] = useState("https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadCharacters() {
+      setIsLoading(true);
+      const data = await fetchCharacters();
+      if (Array.isArray(data)) {
+        const mapped = data.map((item: any) => {
+          let refImgs: string[] = [];
+          if (Array.isArray(item.referenceImages)) {
+            refImgs = item.referenceImages;
+          } else if (typeof item.referenceImagesJson === "string") {
+            try {
+              refImgs = JSON.parse(item.referenceImagesJson);
+            } catch {
+              refImgs = [];
+            }
+          }
+          return {
+            id: item.id || `char-${Date.now()}`,
+            name: item.name || "Unnamed Character",
+            age: item.age || 25,
+            gender: item.gender || "Male",
+            appearance: item.appearance || "",
+            clothing: item.clothing || "",
+            style: item.style || "Cinematic Realistic",
+            referenceImages: refImgs
+          };
+        });
+        setCharacters(mapped);
+      }
+      setIsLoading(false);
+    }
+    loadCharacters();
+  }, []);
 
   const handleCreateCharacter = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,50 +119,60 @@ export default function CharactersPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {characters.map((char) => (
-          <div key={char.id} className="studio-panel p-6 border border-[#27272a] bg-[#111113] space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-white font-display">{char.name}</h3>
-                <span className="text-xs text-[#a78bfa] font-mono">{char.style} • {char.gender}, {char.age} tuổi</span>
+      {isLoading ? (
+        <div className="p-12 text-center text-xs text-zinc-500 font-mono">Đang tải danh sách nhân vật...</div>
+      ) : characters.length === 0 ? (
+        <div className="p-12 studio-panel text-center flex flex-col items-center justify-center space-y-3">
+          <User className="w-10 h-10 text-zinc-600" />
+          <h3 className="text-sm font-semibold text-white font-display">Chưa Có Nhân Vật Nào trong Thư Viện</h3>
+          <p className="text-xs text-zinc-500 max-w-sm">Tạo hồ sơ nhân vật mới và tải ảnh tham chiếu để tạo video nhất quán với Veo 3.1 Engine.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {characters.map((char) => (
+            <div key={char.id} className="studio-panel p-6 border border-[#27272a] bg-[#111113] space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-white font-display">{char.name}</h3>
+                  <span className="text-xs text-[#a78bfa] font-mono">{char.style} • {char.gender}, {char.age} tuổi</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] text-[10px] font-mono">
+                  Hồ Sơ Kích Hoạt
+                </span>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#22c55e]/10 border border-[#22c55e]/30 text-[#22c55e] text-[10px] font-mono">
-                Hồ Sơ Kích Hoạt
-              </span>
-            </div>
 
-            <div className="space-y-1.5 text-xs text-zinc-300 font-sans">
-              <p><strong className="text-zinc-500 font-mono">Ngoại Hình:</strong> {char.appearance}</p>
-              <p><strong className="text-zinc-500 font-mono">Trang Phục:</strong> {char.clothing}</p>
-            </div>
+              <div className="space-y-1.5 text-xs text-zinc-300 font-sans">
+                <p><strong className="text-zinc-500 font-mono">Ngoại Hình:</strong> {char.appearance || "N/A"}</p>
+                <p><strong className="text-zinc-500 font-mono">Trang Phục:</strong> {char.clothing || "N/A"}</p>
+              </div>
 
-            <div className="pt-2 border-t border-[#27272a]">
-              <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">
-                Ảnh Tham Chiếu Veo 3.1 ({char.referenceImages.length}/3 Ảnh)
-              </label>
-              <div className="flex items-center gap-3">
-                {char.referenceImages.map((imgUrl, i) => (
-                  <div key={i} className="relative w-16 h-16 rounded-[8px] overflow-hidden border border-[#27272a] hover:border-[#8b5cf6] transition-all">
-                    <Image
-                      src={imgUrl}
-                      alt={char.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
-                {char.referenceImages.length < 3 && (
-                  <button className="w-16 h-16 rounded-[8px] border border-dashed border-[#27272a] hover:border-[#8b5cf6]/50 flex flex-col items-center justify-center text-zinc-500 hover:text-white transition-all text-[10px] gap-1 font-mono">
-                    <ImageIcon className="w-4 h-4" />
-                    <span>+ Thêm</span>
-                  </button>
-                )}
+              <div className="pt-2 border-t border-[#27272a]">
+                <label className="block text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-2">
+                  Ảnh Tham Chiếu Veo 3.1 ({char.referenceImages.length}/3 Ảnh)
+                </label>
+                <div className="flex items-center gap-3">
+                  {char.referenceImages.map((imgUrl, i) => (
+                    <div key={i} className="relative w-16 h-16 rounded-[8px] overflow-hidden border border-[#27272a] hover:border-[#8b5cf6] transition-all">
+                      <Image
+                        src={imgUrl}
+                        alt={char.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  ))}
+                  {char.referenceImages.length < 3 && (
+                    <button className="w-16 h-16 rounded-[8px] border border-dashed border-[#27272a] hover:border-[#8b5cf6]/50 flex flex-col items-center justify-center text-zinc-500 hover:text-white transition-all text-[10px] gap-1 font-mono">
+                      <ImageIcon className="w-4 h-4" />
+                      <span>+ Thêm</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* New Character Modal */}
       {isModalOpen && (

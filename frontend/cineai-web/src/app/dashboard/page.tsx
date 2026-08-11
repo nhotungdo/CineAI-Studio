@@ -53,10 +53,13 @@ export default function DashboardPage() {
 
   const handleHeroGenerate = () => {
     if (promptInput.trim()) {
-      router.push(`/create?idea=${encodeURIComponent(promptInput)}`);
-    } else {
-      router.push("/create");
+      try {
+        sessionStorage.setItem("cineai_pending_idea", promptInput);
+      } catch (e) {
+        console.error("Failed to set sessionStorage", e);
+      }
     }
+    router.push("/create");
   };
 
   return (

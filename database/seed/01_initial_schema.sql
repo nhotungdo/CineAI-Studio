@@ -60,17 +60,48 @@ CREATE TABLE IF NOT EXISTS characters (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Video Jobs Table
+CREATE TABLE IF NOT EXISTS video_jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
+    prompt TEXT NOT NULL DEFAULT '',
+    model VARCHAR(100) DEFAULT 'google/veo-3.1-fast',
+    operation_id TEXT,
+    job_type VARCHAR(50) DEFAULT 'VeoVideoGeneration',
+    status VARCHAR(50) NOT NULL DEFAULT 'Queued',
+    progress_percentage INT DEFAULT 0,
+    total_scenes INT DEFAULT 1,
+    completed_scenes INT DEFAULT 0,
+    video_path TEXT,
+    final_video_path TEXT,
+    thumbnail_path TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
 -- Scenes Table
 CREATE TABLE IF NOT EXISTS scenes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    video_job_id UUID REFERENCES video_jobs(id) ON DELETE CASCADE,
     character_id UUID REFERENCES characters(id) ON DELETE SET NULL,
     scene_number INT NOT NULL,
     duration FLOAT NOT NULL DEFAULT 5.0,
     prompt TEXT NOT NULL,
     camera_movement VARCHAR(100),
     lighting_style VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    status VARCHAR(50) DEFAULT 'Pending',
+    width INT DEFAULT 1080,
+    height INT DEFAULT 1920,
+    operation_id TEXT,
+    video_path TEXT,
+    normalized_path TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Scene Generations Table
@@ -78,21 +109,9 @@ CREATE TABLE IF NOT EXISTS scene_generations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     scene_id UUID NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
     veo_operation_id VARCHAR(255),
-    status VARCHAR(50) NOT NULL DEFAULT 'Pending', -- Pending, Processing, Completed, Failed
+    status VARCHAR(50) NOT NULL DEFAULT 'Pending',
     video_url TEXT,
     preview_url TEXT,
-    error_message TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Video Jobs Table
-CREATE TABLE IF NOT EXISTS video_jobs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    generation_id UUID NOT NULL REFERENCES scene_generations(id) ON DELETE CASCADE,
-    job_type VARCHAR(50) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'Queued',
-    progress_percentage INT DEFAULT 0,
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "commondatastorage.googleapis.com",
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "5000",
+      },
     ],
   },
 };
