@@ -10,8 +10,8 @@ interface ProjectItem {
   id: string;
   title: string;
   description: string;
-  aspectRatio: number;
-  style: number;
+  aspectRatio: string;
+  style: string;
   targetDuration: number;
 }
 

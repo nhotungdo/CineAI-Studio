@@ -174,6 +174,12 @@ export class VeoService {
   async downloadVideoToFile(url: string, outputPath: string): Promise<boolean> {
     return new Promise((resolve) => {
       try {
+        if (!url || typeof url !== 'string' || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+          console.error(`[VeoService] Invalid or unsupported video download URL: ${url}`);
+          resolve(false);
+          return;
+        }
+
         const dir = path.dirname(outputPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 

@@ -12,7 +12,8 @@ export class FFmpegService {
     const dir = path.dirname(outputPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-    const cmd = `ffmpeg -y -i "${inputPath}" -c:v libx264 -preset fast -c:a aac -r ${fps} -pix_fmt yuv420p -vf "scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2" "${outputPath}"`;
+    // Note: use -c:a aac only if audio exists, or use default codec mapping so videos without audio don't crash stream mapping
+    const cmd = `ffmpeg -y -i "${inputPath}" -vf "scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -preset fast -r ${fps} -pix_fmt yuv420p "${outputPath}"`;
     
     try {
       await execAsync(cmd);

@@ -513,12 +513,12 @@ export default function ProjectWorkspacePage({ params }: { params: Promise<{ pro
                       <SceneStatusBadge status={sc.status} />
                     </div>
                     {sc.videoUrl && (
-                      <button
+                      <div
                         onClick={(e) => { e.stopPropagation(); setActivePreviewVideo(sc.videoUrl); }}
-                        className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#8b5cf6]/80 flex items-center justify-center"
+                        className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-[#8b5cf6]/80 flex items-center justify-center cursor-pointer"
                       >
                         <Play className="w-2 h-2 fill-white ml-0.5" />
-                      </button>
+                      </div>
                     )}
                   </button>
                 ))

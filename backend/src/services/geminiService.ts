@@ -88,7 +88,8 @@ Return JSON:
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        const cleanedJson = text.replace(/```json|```/g, '').trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const cleanedJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleanedJson);
 
         return {
@@ -98,8 +99,9 @@ Return JSON:
           suggestedLighting: parsed.suggestedLighting || 'neon cinematic',
           keyKeywords: ['Veo 3.1', '8k photorealistic', '35mm anamorphic']
         };
-      } catch (err: any) {
-        console.error('[Gemini Refine Error]', err?.message || err);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('[Gemini Refine Error]', errMsg);
       }
     }
 
@@ -146,10 +148,12 @@ Return JSON with structure:
 
         const result = await model.generateContent(prompt);
         const text = result.response.text();
-        const cleanedJson = text.replace(/```json|```/g, '').trim();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const cleanedJson = jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim();
         return JSON.parse(cleanedJson) as DirectorResponse;
-      } catch (err: any) {
-        console.error('[Gemini Orchestrate Error]', err?.message || err);
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('[Gemini Orchestrate Error]', errMsg);
       }
     }
 
