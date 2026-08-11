@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// Ensure storage directory exists and serve statically
+// Serve static storage
 const storageDir = path.resolve(process.cwd(), 'storage');
 if (!fs.existsSync(storageDir)) {
   fs.mkdirSync(storageDir, { recursive: true });
@@ -31,21 +31,33 @@ app.get('/', (req, res) => {
   res.json({
     name: 'CineAI Studio Node.js Express API',
     status: 'Healthy',
-    veoModel: 'veo-2.0-generate-001 (Gemini API)',
+    pipeline: 'AI Video Production Pipeline (Gemini 3.1 Pro + Veo 3.1 + FFmpeg)',
     geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-pro'
   });
 });
 
-// Video Routes
-app.post('/api/Video/generate', videoCtrl.startGeneration);
-app.post('/api/Video/generate-multiscene', videoCtrl.startMultiSceneGeneration);
+// Video Pipeline Routes
+app.post('/api/Video/create-pipeline', videoCtrl.createPipeline);
+app.get('/api/Video/jobs/:jobId/storyboard', videoCtrl.getJobStoryboard);
+app.put('/api/Video/jobs/:jobId/storyboard/scenes/:sceneId', videoCtrl.updateScene);
+app.delete('/api/Video/jobs/:jobId/storyboard/scenes/:sceneId', videoCtrl.deleteScene);
+app.post('/api/Video/jobs/:jobId/storyboard/scenes', videoCtrl.addScene);
+app.put('/api/Video/jobs/:jobId/storyboard/reorder', videoCtrl.reorderScenes);
+app.post('/api/Video/jobs/:jobId/storyboard/scenes/:sceneId/regenerate', videoCtrl.regenerateScenePrompt);
+app.post('/api/Video/jobs/:jobId/approve-storyboard', videoCtrl.approveStoryboard);
+app.put('/api/Video/jobs/:jobId/audio-settings', videoCtrl.updateAudioSettings);
+
+// Video Job Status & Progress Routes
 app.get('/api/Video/jobs/:jobId', videoCtrl.getJobStatus);
 app.get('/api/Video/jobs/:jobId/progress', videoCtrl.getJobProgress);
-app.post('/api/Video/jobs/:jobId/trigger', videoCtrl.triggerJob);
+app.get('/api/Video/jobs/:jobId/events', videoCtrl.sseEvents);
 app.get('/api/Video/jobs', videoCtrl.getRecentJobs);
-app.get('/api/Video/operation/:operationId', videoCtrl.getOperationStatus);
 app.post('/api/Video/jobs/:jobId/retry-scene/:sceneId', videoCtrl.retryScene);
-app.post('/api/Video/jobs/:jobId/retry-merge', videoCtrl.retryMerge);
+app.post('/api/Video/jobs/:jobId/re-render', videoCtrl.reRenderPipeline);
+app.post('/api/Video/jobs/:jobId/trigger', videoCtrl.triggerPipeline);
+
+// Legacy Single-clip Generation Routes
+app.post('/api/Video/generate', videoCtrl.startGeneration);
 
 // Project Routes
 app.get('/api/Project', projectCtrl.getProjects);
@@ -55,7 +67,6 @@ app.post('/api/Project', projectCtrl.createProject);
 // Character Routes
 app.get('/api/Character', charCtrl.getCharacters);
 app.post('/api/Character', charCtrl.createCharacter);
-
 
 // Export Routes
 app.get('/api/Export', exportCtrl.getExports);

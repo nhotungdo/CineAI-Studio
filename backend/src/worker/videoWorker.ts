@@ -5,26 +5,28 @@ import { query } from '../db/index.js';
 import { veoService } from '../services/veoService.js';
 import { geminiService } from '../services/geminiService.js';
 import { ffmpegService } from '../services/ffmpegService.js';
+import { sseService } from '../services/sseService.js';
+import { ttsService } from '../services/ttsService.js';
+import { subtitleService } from '../services/subtitleService.js';
 
-const POLL_INTERVAL_MS = 5000;   // 5 seconds between status checks
-const MAX_POLLS = 60;            // Max 5 minutes per scene (60 × 5s)
+const POLL_INTERVAL_MS = 4000;   // 4 seconds status check
+const MAX_POLLS = 60;            // Max 4 minutes per scene
 
 export async function runWorkerLoop() {
-  console.log('[VideoWorker] Node.js Asynchronous Multi-Scene Worker Loop Started.');
+  console.log('[VideoWorker] Node.js Asynchronous Pipeline Orchestrator Started.');
 
   while (true) {
     try {
-      // 1. Fetch oldest queued or in-progress job
+      // Fetch oldest job needing processing
       const jobResult = await query(
-        `SELECT id, user_id, project_id, prompt, model, status, progress_percentage, total_scenes, completed_scenes 
+        `SELECT id, user_id, project_id, prompt, model, video_type, duration, aspect_ratio, visual_style, language, status, progress_percentage, total_scenes, completed_scenes, script, bg_music_id, voiceover_id, subtitle_style 
          FROM video_jobs 
-         WHERE status IN ('Queued', 'Planning', 'Generating', 'Downloading', 'Normalizing', 'Merging') 
+         WHERE status IN ('Planning', 'Generating', 'Downloading', 'Normalizing', 'Merging') 
          ORDER BY created_at ASC LIMIT 1`
       );
 
       if (jobResult.rows.length > 0) {
         const job = jobResult.rows[0];
-        console.log(`[VideoWorker] Processing Job ID: ${job.id} | Status: ${job.status}`);
         await processJob(job);
       }
     } catch (err) {
@@ -50,175 +52,193 @@ async function processJob(job: Record<string, unknown>) {
     fs.mkdirSync(videosDir, { recursive: true });
     fs.mkdirSync(thumbsDir, { recursive: true });
 
-    // ─── STAGE 1: PLANNING (Gemini AI Director) ───────────────────────────────
-    const sceneCheck = await query(`SELECT id FROM scenes WHERE video_job_id = $1`, [jobId]);
-    if (sceneCheck.rows.length === 0 || job.status === 'Queued' || job.status === 'Planning') {
-      await query(
-        `UPDATE video_jobs SET status = 'Planning', progress_percentage = 10, started_at = CURRENT_TIMESTAMP WHERE id = $1`,
-        [jobId]
-      );
+    // ─── STAGE 1: PLANNING (Gemini 3.1 Pro AI Director) ────────────────────────
+    if (job.status === 'Planning') {
+      console.log(`[VideoWorker] Stage 1 (AI Director) for Job ${jobId}`);
 
       try {
-        const directorRes = await geminiService.orchestrateDirector({ idea: job.prompt as string });
-        const scenePlans = directorRes.storyboard.scenes;
+        const directorRes = await geminiService.orchestrateDirector({
+          idea: job.prompt as string,
+          targetDuration: Number(job.duration) || 30,
+          aspectRatio: (job.aspect_ratio as string) || '16:9',
+          style: (job.visual_style as string) || 'Cinematic',
+          language: (job.language as string) || 'English'
+        });
+
         const defaultProjectId = job.project_id || '22222222-2222-2222-2222-222222222222';
 
-        for (const sc of scenePlans) {
+        // Update Job metadata with AI Director plan
+        await query(
+          `UPDATE video_jobs SET 
+            title = $1, concept = $2, script = $3, visual_style = $4, characters_data = $5,
+            total_scenes = $6, status = 'DraftStoryboard', progress_percentage = 20
+           WHERE id = $7`,
+          [
+            directorRes.title,
+            directorRes.concept,
+            JSON.stringify(directorRes.script),
+            directorRes.visualStyle,
+            JSON.stringify(directorRes.characters),
+            directorRes.scenes.length,
+            jobId
+          ]
+        );
+
+        // Delete any existing scenes if re-planning
+        await query(`DELETE FROM scenes WHERE video_job_id = $1`, [jobId]);
+
+        // Insert planned scenes into database
+        for (const sc of directorRes.scenes) {
           const sceneId = uuidv4();
           await query(
-            `INSERT INTO scenes (id, project_id, video_job_id, scene_number, duration, prompt, camera_movement, lighting_style, status, width, height, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Pending', 1080, 1920, CURRENT_TIMESTAMP)
-             ON CONFLICT (id) DO NOTHING`,
-            [sceneId, defaultProjectId, jobId, sc.sceneNumber, sc.duration, sc.prompt, sc.cameraMovement, sc.lightingStyle]
+            `INSERT INTO scenes (
+              id, project_id, video_job_id, scene_number, title, description, prompt, duration, camera_movement, lighting_style, visual_style, characters, status, created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Pending', CURRENT_TIMESTAMP)`,
+            [
+              sceneId,
+              defaultProjectId,
+              jobId,
+              sc.sceneNumber,
+              sc.title || `Scene ${sc.sceneNumber}`,
+              sc.description || '',
+              sc.prompt,
+              sc.duration || 6,
+              sc.cameraMovement || 'dolly in',
+              sc.lightingStyle || 'neon contrast',
+              sc.visualStyle || directorRes.visualStyle,
+              JSON.stringify(sc.characters || [])
+            ]
           );
         }
 
-        await query(
-          `UPDATE video_jobs SET total_scenes = $1, completed_scenes = 0, status = 'Generating', progress_percentage = 20 WHERE id = $2`,
-          [scenePlans.length, jobId]
-        );
-        console.log(`[VideoWorker] Planning complete: ${scenePlans.length} scenes for Job ${jobId}`);
+        sseService.broadcastToJob(jobId, 'job_status_change', { jobId, status: 'DraftStoryboard', progress: 20 });
+        console.log(`[VideoWorker] Planning complete: Created ${directorRes.scenes.length} scenes for Job ${jobId}. Awaiting User Review.`);
+        return; // Pause execution for User Review!
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
-        console.error(`[VideoWorker] Planning failed for Job ${jobId}:`, errMsg);
-        await query(
-          `UPDATE video_jobs SET status = 'Failed', error_message = $1 WHERE id = $2`,
-          [errMsg, jobId]
-        );
+        console.error(`[VideoWorker] AI Director Planning failed for Job ${jobId}:`, errMsg);
+        await query(`UPDATE video_jobs SET status = 'Failed', error_message = $1 WHERE id = $2`, [errMsg, jobId]);
+        sseService.broadcastToJob(jobId, 'job_status_change', { jobId, status: 'Failed', error: errMsg });
         return;
       }
     }
 
-    // ─── STAGE 2 & 3: GENERATE + DOWNLOAD + NORMALIZE EACH SCENE ─────────────
-    const scenesResult = await query(
-      `SELECT * FROM scenes WHERE video_job_id = $1 ORDER BY scene_number ASC`, [jobId]
-    );
-    const scenes = scenesResult.rows;
+    // ─── STAGE 2 & 3: GENERATE + DOWNLOAD + FFMPEG NORMALIZE SCENES ───────────
+    if (job.status === 'Generating') {
+      const scenesResult = await query(`SELECT * FROM scenes WHERE video_job_id = $1 ORDER BY scene_number ASC`, [jobId]);
+      const scenes = scenesResult.rows;
 
-    let completedCount = 0;
-
-    for (const sc of scenes) {
-      if (sc.status === 'ReadyForMerge' || sc.status === 'Merged') {
-        completedCount++;
-        continue;
-      }
-
-      if (sc.status === 'Pending' || sc.status === 'Generating') {
-        await query(
-          `UPDATE scenes SET status = 'Generating', started_at = CURRENT_TIMESTAMP WHERE id = $1`, [sc.id]
-        );
-
-        try {
-          // Step A: Start generation
-          const veoRes = await veoService.startGeneration({
-            prompt: sc.prompt,
-            model: (job.model as string) || 'veo-2.0-generate-001',
-            aspectRatio: '9:16',
-            durationSeconds: Math.round(sc.duration) || 8,
-          });
-
-          const opId = veoRes.operationId;
-          await query(`UPDATE scenes SET operation_id = $1 WHERE id = $2`, [opId, sc.id]);
-
-          // Step B: Poll for completion
-          let isDone = false;
-          let videoUrl: string | null = null;
-          let polls = MAX_POLLS;
-          let lastError: string | undefined;
-
-          while (!isDone && polls > 0) {
-            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-            const st = await veoService.checkStatus(opId);
-            isDone = st.isDone;
-            videoUrl = st.videoUrl;
-            lastError = st.errorMessage;
-            polls--;
-
-            // Update progress during polling
-            const pct = 20 + Math.round((1 - polls / MAX_POLLS) * 30);
-            await query(
-              `UPDATE video_jobs SET progress_percentage = $1 WHERE id = $2`, [pct, jobId]
-            );
-          }
-
-          if (!isDone || !videoUrl) {
-            throw new Error(lastError || 'Video generation timed out or no URL returned');
-          }
-
-          // Step C: Download video to disk
-          const rawPath = path.join(rawScenesDir, `scene-${sc.id}.mp4`);
-          console.log(`[VideoWorker] Downloading Scene ${sc.scene_number} from: ${videoUrl.substring(0, 80)}`);
-
-          const downloaded = await veoService.downloadVideoToFile(videoUrl, rawPath);
-
-          if (!downloaded || !fs.existsSync(rawPath)) {
-            throw new Error(`Failed to download video for Scene ${sc.scene_number}`);
-          }
-
-          await query(
-            `UPDATE scenes SET status = 'Downloaded', video_path = $1 WHERE id = $2`,
-            [rawPath, sc.id]
-          );
-          sc.video_path = rawPath;
-          sc.status = 'Downloaded';
-
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(`[VideoWorker] Scene ${sc.scene_number} generation failed:`, errMsg);
-          await query(
-            `UPDATE scenes SET status = 'Failed', error_message = $1 WHERE id = $2`,
-            [errMsg, sc.id]
-          );
-          // Continue to next scene — don't crash the whole job
+      for (const sc of scenes) {
+        if (sc.status === 'ReadyForMerge' || sc.status === 'Merged') {
           continue;
         }
-      }
 
-      // Step D: Normalize
-      if (sc.status === 'Downloaded' || sc.status === 'Generated') {
-        const inputPath = sc.video_path || path.join(rawScenesDir, `scene-${sc.id}.mp4`);
-        const normPath = path.join(normScenesDir, `scene-${sc.id}.normalized.mp4`);
+        if (sc.status === 'Pending' || sc.status === 'Generating') {
+          await query(`UPDATE scenes SET status = 'Generating', started_at = CURRENT_TIMESTAMP WHERE id = $1`, [sc.id]);
+          sseService.broadcastToJob(jobId, 'scene_status_change', { jobId, sceneId: sc.id, sceneNumber: sc.scene_number, status: 'Generating' });
 
-        const normalized = await ffmpegService.normalizeVideo(inputPath, normPath);
-        if (normalized && fs.existsSync(normPath)) {
-          await query(
-            `UPDATE scenes SET status = 'ReadyForMerge', normalized_path = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2`,
-            [normPath, sc.id]
-          );
-          sc.status = 'ReadyForMerge';
-          sc.normalized_path = normPath;
-          completedCount++;
+          try {
+            // Step A: Start Veo video generation
+            const veoRes = await veoService.startGeneration({
+              prompt: sc.prompt,
+              model: (job.model as string) || 'google/veo-3.1-fast',
+              aspectRatio: (job.aspect_ratio as string) || '16:9',
+              durationSeconds: Math.round(sc.duration) || 6,
+            });
+
+            const opId = veoRes.operationId;
+            await query(`UPDATE scenes SET operation_id = $1 WHERE id = $2`, [opId, sc.id]);
+
+            // Step B: Poll for operation completion
+            let isDone = false;
+            let videoUrl: string | null = null;
+            let polls = MAX_POLLS;
+            let lastError: string | undefined;
+
+            while (!isDone && polls > 0) {
+              await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+              const st = await veoService.checkStatus(opId);
+              isDone = st.isDone;
+              videoUrl = st.videoUrl;
+              lastError = st.errorMessage;
+              polls--;
+            }
+
+            if (!isDone || !videoUrl) {
+              throw new Error(lastError || `Scene ${sc.scene_number} video generation timed out`);
+            }
+
+            // Step C: Download clip
+            const rawPath = path.join(rawScenesDir, `scene-${sc.id}.mp4`);
+            console.log(`[VideoWorker] Downloading Scene ${sc.scene_number} clip...`);
+
+            const downloaded = await veoService.downloadVideoToFile(videoUrl, rawPath);
+            if (!downloaded || !fs.existsSync(rawPath)) {
+              throw new Error(`Failed to download raw video clip for Scene ${sc.scene_number}`);
+            }
+
+            await query(`UPDATE scenes SET status = 'Downloaded', video_path = $1 WHERE id = $2`, [rawPath, sc.id]);
+            sc.video_path = rawPath;
+            sc.status = 'Downloaded';
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.error(`[VideoWorker] Scene ${sc.scene_number} failed:`, errMsg);
+            await query(`UPDATE scenes SET status = 'Failed', error_message = $1 WHERE id = $2`, [errMsg, sc.id]);
+            sseService.broadcastToJob(jobId, 'scene_status_change', { jobId, sceneId: sc.id, sceneNumber: sc.scene_number, status: 'Failed', error: errMsg });
+            continue; // Failure isolation: do not stop remaining scenes!
+          }
+        }
+
+        // Step D: Normalize with FFmpeg
+        if (sc.status === 'Downloaded') {
+          const inputPath = sc.video_path || path.join(rawScenesDir, `scene-${sc.id}.mp4`);
+          const normPath = path.join(normScenesDir, `scene-${sc.id}.normalized.mp4`);
+
+          const normalized = await ffmpegService.normalizeVideo(inputPath, normPath);
+          if (normalized && fs.existsSync(normPath)) {
+            await query(
+              `UPDATE scenes SET status = 'ReadyForMerge', normalized_path = $1, completed_at = CURRENT_TIMESTAMP WHERE id = $2`,
+              [normPath, sc.id]
+            );
+            sc.status = 'ReadyForMerge';
+            sc.normalized_path = normPath;
+            sseService.broadcastToJob(jobId, 'scene_status_change', { jobId, sceneId: sc.id, sceneNumber: sc.scene_number, status: 'ReadyForMerge' });
+          }
         }
       }
+
+      // Update completed scene count & total progress
+      const readyRes = await query(
+        `SELECT COUNT(*) as cnt FROM scenes WHERE video_job_id = $1 AND status IN ('ReadyForMerge', 'Merged')`,
+        [jobId]
+      );
+      const readyCount = parseInt(readyRes.rows[0]?.cnt || '0', 10);
+      const totalCount = scenes.length || 1;
+      const pct = 20 + Math.round((readyCount / totalCount) * 65);
+
+      await query(`UPDATE video_jobs SET completed_scenes = $1, progress_percentage = $2 WHERE id = $3`, [readyCount, pct, jobId]);
+      sseService.broadcastToJob(jobId, 'progress_update', { jobId, completedScenes: readyCount, totalScenes: totalCount, progressPercentage: pct });
+
+      // Check if all scenes are ready to merge
+      if (readyCount >= totalCount) {
+        await query(`UPDATE video_jobs SET status = 'Merging', progress_percentage = 85 WHERE id = $1`, [jobId]);
+      }
     }
 
-    // Update completed_scenes count
-    const readyCount = (await query(
-      `SELECT COUNT(*) as cnt FROM scenes WHERE video_job_id = $1 AND status IN ('ReadyForMerge', 'Merged')`,
-      [jobId]
-    )).rows[0]?.cnt || 0;
+    // ─── STAGE 4: FFMPEG CONCAT MERGING ───────────────────────────────────────
+    if (job.status === 'Merging') {
+      console.log(`[VideoWorker] Stage 4 (FFmpeg Merge) for Job ${jobId}`);
 
-    await query(
-      `UPDATE video_jobs SET completed_scenes = $1 WHERE id = $2`,
-      [readyCount, jobId]
-    );
+      const readyScenesResult = await query(
+        `SELECT * FROM scenes WHERE video_job_id = $1 AND status IN ('ReadyForMerge', 'Merged') ORDER BY scene_number ASC`,
+        [jobId]
+      );
+      const readyScenes = readyScenesResult.rows;
 
-    // ─── STAGE 4: FFMPEG MERGE ─────────────────────────────────────────────────
-    const readyScenesResult = await query(
-      `SELECT * FROM scenes WHERE video_job_id = $1 AND status IN ('ReadyForMerge', 'Merged') ORDER BY scene_number ASC`,
-      [jobId]
-    );
-    const readyScenes = readyScenesResult.rows;
-    const totalScenes = scenes.length;
-
-    if (readyScenes.length === 0) {
-      console.warn(`[VideoWorker] No scenes ready to merge for Job ${jobId}`);
-      await query(`UPDATE video_jobs SET status = 'Failed', error_message = 'No scenes completed successfully' WHERE id = $1`, [jobId]);
-      return;
-    }
-
-    if (readyScenes.length >= totalScenes || readyScenes.length > 0) {
-      await query(`UPDATE video_jobs SET status = 'Merging', progress_percentage = 90 WHERE id = $1`, [jobId]);
+      if (readyScenes.length === 0) {
+        await query(`UPDATE video_jobs SET status = 'Failed', error_message = 'No ready scenes found for merging' WHERE id = $1`, [jobId]);
+        return;
+      }
 
       const concatListFile = path.join(normScenesDir, `concat-list-${jobId}.txt`);
       let concatContent = '';
@@ -230,18 +250,60 @@ async function processJob(job: Record<string, unknown>) {
       }
 
       fs.writeFileSync(concatListFile, concatContent, 'utf-8');
-      const finalVideoPath = path.join(videosDir, `final-${jobId}.mp4`);
-      await ffmpegService.concatVideos(concatListFile, finalVideoPath);
+      
+      const mergedVideoPath = path.join(videosDir, `merged-${jobId}.mp4`);
+      await ffmpegService.concatVideos(concatListFile, mergedVideoPath);
 
-      if (!fs.existsSync(finalVideoPath)) {
-        // Fallback: copy first ready scene
+      if (!fs.existsSync(mergedVideoPath)) {
+        // Fallback: copy first clip
         const firstPath = readyScenes[0].normalized_path || readyScenes[0].video_path;
         if (firstPath && fs.existsSync(firstPath)) {
-          fs.copyFileSync(firstPath, finalVideoPath);
+          fs.copyFileSync(firstPath, mergedVideoPath);
         }
       }
 
-      // ─── STAGE 5: THUMBNAIL & COMPLETION ──────────────────────────────────────
+      // --- Phase 2: Audio & Subtitle Generation ---
+      const finalVideoPath = path.join(videosDir, `final-${jobId}.mp4`);
+      let voiceoverPath: string | undefined;
+      let subtitlePath: string | undefined;
+      let bgMusicPath: string | undefined;
+      
+      // Look up background music from DB if present
+      if (job.bg_music_id) {
+        const bgmResult = await query(`SELECT file_path FROM audio_tracks WHERE id = $1`, [job.bg_music_id]);
+        if (bgmResult.rows.length > 0) bgMusicPath = bgmResult.rows[0].file_path;
+      }
+
+      // Generate Voiceover if script exists
+      const scriptData = job.script ? String(job.script) : '';
+      if (scriptData && scriptData.length > 10) {
+         try {
+           const ttsResult = await ttsService.generateVoiceover(scriptData);
+           voiceoverPath = ttsResult.audioPath;
+           
+           if (job.subtitle_style !== 'None') {
+             subtitlePath = await subtitleService.generateSubtitles(scriptData, ttsResult.duration);
+           }
+         } catch (e) {
+           console.error('[VideoWorker] Phase 2 TTS/Subtitle Error:', e);
+         }
+      }
+
+      // Merge video with audio and subtitles
+      const mixResult = await ffmpegService.mergeWithAudioAndSubtitles(mergedVideoPath, finalVideoPath, {
+        bgMusicPath,
+        voiceoverPath,
+        subtitlePath
+      });
+      
+      // Cleanup intermediate merge if final exists
+      if (mixResult && fs.existsSync(finalVideoPath) && fs.existsSync(mergedVideoPath)) {
+        fs.unlinkSync(mergedVideoPath);
+      } else if (!fs.existsSync(finalVideoPath)) {
+        fs.copyFileSync(mergedVideoPath, finalVideoPath);
+      }
+
+      // Generate thumbnail
       const thumbnailPath = path.join(thumbsDir, `final-${jobId}.jpg`);
       await ffmpegService.generateThumbnail(finalVideoPath, thumbnailPath);
 
@@ -253,14 +315,18 @@ async function processJob(job: Record<string, unknown>) {
         [finalVideoPath, thumbnailPath, jobId]
       );
 
-      console.log(`[VideoWorker] ✅ Job ${jobId} completed! ${readyScenes.length}/${totalScenes} scenes merged.`);
+      sseService.broadcastToJob(jobId, 'job_completed', {
+        jobId,
+        status: 'Completed',
+        finalVideoUrl: `http://localhost:5000/storage/videos/${path.basename(finalVideoPath)}`,
+        thumbnailUrl: `http://localhost:5000/storage/thumbnails/${path.basename(thumbnailPath)}`
+      });
+
+      console.log(`[VideoWorker] ✅ Job ${jobId} Completed Successfully!`);
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error(`[VideoWorker Fatal Job Error] Job ${jobId} failed unexpectedly:`, errMsg);
-    await query(
-      `UPDATE video_jobs SET status = 'Failed', error_message = $1 WHERE id = $2`,
-      [errMsg, jobId]
-    ).catch((e) => console.error('[Failed DB Update Error]', e));
+    console.error(`[VideoWorker Fatal Exception] Job ${jobId} error:`, errMsg);
+    await query(`UPDATE video_jobs SET status = 'Failed', error_message = $1 WHERE id = $2`, [errMsg, jobId]).catch(() => {});
   }
 }

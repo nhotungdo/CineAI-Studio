@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Play, ArrowRight, Layers, Sparkles } from "lucide-react";
+import { Play, ArrowRight, Layers, Flower2 } from "lucide-react";
 import Image from "next/image";
 import { fetchProjects, refinePrompt } from "@/lib/api";
 
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const handleRefinePrompt = async () => {
     if (!promptInput.trim()) return;
     setIsRefining(true);
-    const refined = await refinePrompt(promptInput, "Cinematic");
+    const refined = await refinePrompt(promptInput, "Anime");
     if (refined && refined.refinedPrompt) {
       setPromptInput(refined.refinedPrompt);
     }
@@ -63,21 +63,21 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 relative z-10 max-w-5xl mx-auto">
       {/* Hero Section */}
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white font-display">
-            Chủ Nhật An Lành, Nho 👋
+            ⛩️ Konnichiwa, Chào mừng trở lại 👋
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">Hôm nay bạn muốn sáng tạo phim điện ảnh gì?</p>
+          <p className="text-zinc-400 text-sm mt-1">Hôm nay bạn muốn sáng tạo tác phẩm điện ảnh gì cùng Sakura AI?</p>
         </div>
 
         {/* Studio Prompt Card */}
-        <div className="studio-panel p-6 border border-[#27272a] bg-[#111113] space-y-4">
+        <div className="studio-panel glass-studio p-6 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-white uppercase tracking-wider font-display">
-              ✦ Mô Tả Ý Tưởng Video Của Bạn
+              🌸 Mô Tả Ý Tưởng Video Của Bạn
             </span>
 
             {/* AI Prompt Enhancer Button */}
@@ -85,17 +85,17 @@ export default function DashboardPage() {
               type="button"
               onClick={handleRefinePrompt}
               disabled={isRefining || !promptInput.trim()}
-              className="px-3 py-1 rounded-[6px] bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#a78bfa] text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-40"
+              className="px-3 py-1 rounded-[6px] bg-[var(--color-sakura-pink)]/10 hover:bg-[var(--color-sakura-pink)]/20 border border-[var(--color-sakura-pink)]/30 text-[var(--color-sakura-pink)] text-xs font-medium flex items-center gap-1.5 transition-all disabled:opacity-40"
             >
               {isRefining ? (
                 <>
-                  <div className="w-3 h-3 border-2 border-[#a78bfa]/30 border-t-[#a78bfa] rounded-full animate-spin" />
-                  <span>Đang Tối Ưu Prompt...</span>
+                  <div className="w-3 h-3 border-2 border-[var(--color-sakura-pink)]/30 border-t-[var(--color-sakura-pink)] rounded-full animate-spin" />
+                  <span>Đang Khai Nhãn...</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
-                  <span>Tối Ưu Prompt Bằng AI ✦</span>
+                  <Flower2 className="w-3.5 h-3.5 text-[var(--color-sakura-pink)]" />
+                  <span>Khai Mở Ý Tưởng 🌸</span>
                 </>
               )}
             </button>
@@ -106,22 +106,22 @@ export default function DashboardPage() {
               rows={3}
               value={promptInput}
               onChange={(e) => setPromptInput(e.target.value)}
-              placeholder="✦ Mô tả ý tưởng video điện ảnh của bạn... (VD: 'Phố cổ Hà Nội ban đêm với mưa lún phún và ánh đèn neon rực rỡ...')"
-              className="w-full bg-[#161618] border border-[#27272a] rounded-[10px] p-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[#8b5cf6] transition-all resize-none font-sans"
+              placeholder="🌸 Nhập mô tả... (VD: Lễ hội đèn lồng mùa hè ở Kyoto với các Geisha nhảy múa, ánh sáng neon rực rỡ...)"
+              className="w-full bg-[#111] border border-[var(--border-color)] rounded-[10px] p-4 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[var(--color-torii-red)] transition-all resize-none font-sans"
             />
           </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-2 text-xs text-zinc-500 font-mono">
-              <span>Engine Sáng Tạo: <strong className="text-zinc-300">Gemini 3.1 Pro + Veo 3.1</strong></span>
+              <span>Động cơ AI: <strong className="text-[var(--color-sakura-pink)]">Gemini 3.1 Pro + Veo 3.1</strong></span>
             </div>
 
             <button
               onClick={handleHeroGenerate}
-              className="px-6 py-2.5 rounded-[10px] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] hover:from-[#8b5cf6] hover:to-[#6366f1] text-white font-semibold text-xs shadow-lg shadow-[#7c3aed]/25 flex items-center gap-2 transition-all"
+              className="px-6 py-2.5 rounded-[10px] btn-studio-primary text-xs flex items-center gap-2 transition-all"
             >
               <span>Phân Cảnh AI</span>
-              <span>✦</span>
+              <span>🌸</span>
             </button>
           </div>
         </div>
@@ -131,53 +131,55 @@ export default function DashboardPage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white tracking-tight flex items-center gap-2 font-display">
-            <Layers className="w-4 h-4 text-[#a78bfa]" />
-            <span>Dự Án Gần Đây</span>
+            <Layers className="w-4 h-4 text-[var(--color-torii-red)]" />
+            <span>Tác Phẩm Gần Đây</span>
           </h2>
-          <Link href="/projects" className="text-xs font-semibold text-[#a78bfa] hover:text-white flex items-center gap-1 transition-colors font-mono">
-            <span>Xem Tất Cả</span>
+          <Link href="/projects" className="text-xs font-semibold text-[var(--color-sakura-pink)] hover:text-white flex items-center gap-1 transition-colors font-mono">
+            <span>Mở Toàn Bộ</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {isLoading ? (
-          <div className="p-12 text-center text-xs text-zinc-500 font-mono">Đang tải Studio Workspace...</div>
+          <div className="p-12 text-center text-xs text-zinc-500 font-mono">Đang tải Thư Ký...</div>
         ) : projects.length === 0 ? (
-          <div className="p-12 studio-panel text-center text-xs text-zinc-500">Chưa có dự án nào. Nhập ý tưởng phía trên để bắt đầu phân cảnh.</div>
+          <div className="p-12 studio-panel glass-studio text-center text-xs text-zinc-500">Chưa có tác phẩm nào. Bắt đầu hành trình mới phía trên.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project, idx) => {
               const thumbUrl = CINEMATIC_THUMBNAILS[idx % CINEMATIC_THUMBNAILS.length];
               const uniqueKey = `${project.id}-${idx}`;
               return (
-                <div key={uniqueKey} className="studio-panel studio-panel-hover overflow-hidden transition-all group">
-                  <div className="relative h-48 bg-[#09090b] overflow-hidden">
+                <div key={uniqueKey} className="studio-panel glass-studio studio-panel-hover overflow-hidden transition-all group">
+                  <div className="relative h-48 bg-[#111] overflow-hidden">
                     <Image
                       src={thumbUrl}
                       alt={project.title}
                       fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      priority={idx < 6}
                       className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#161618] via-[#161618]/20 to-transparent opacity-90" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-secondary)] via-transparent to-transparent opacity-90" />
                     
                     {/* Badge */}
-                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-[6px] bg-[#09090b]/80 border border-[#27272a] text-[10px] font-mono text-[#a78bfa]">
-                      ✦ Veo 3.1 Render
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-[6px] bg-[#111]/80 border border-[var(--color-torii-red)]/50 text-[10px] font-mono text-[var(--color-torii-red)] shadow-[0_0_10px_rgba(229,57,53,0.3)]">
+                      ⛩️ Veo 3.1
                     </div>
 
                     <Link
                       href={`/projects/${project.id}`}
-                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-[#09090b]/50 backdrop-blur-xs"
+                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-[#111]/50 backdrop-blur-xs"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#8b5cf6] text-white flex items-center justify-center shadow-lg shadow-[#8b5cf6]/50">
+                      <div className="w-12 h-12 rounded-full bg-[var(--color-torii-red)] text-white flex items-center justify-center shadow-lg glow-torii">
                         <Play className="w-5 h-5 fill-white ml-0.5" />
                       </div>
                     </Link>
                   </div>
 
-                  <div className="p-4 space-y-2">
+                  <div className="p-4 space-y-2 border-t border-[var(--border-color)]">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-white group-hover:text-[#a78bfa] transition-colors font-display">{project.title}</h3>
+                      <h3 className="text-sm font-semibold text-white group-hover:text-[var(--color-sakura-pink)] transition-colors font-display">{project.title}</h3>
                       <span className="text-[10px] font-mono text-zinc-400">00:32 • 1080p</span>
                     </div>
                     <p className="text-xs text-zinc-400 line-clamp-2">{project.description}</p>

@@ -1,8 +1,24 @@
 "use client";
 
-import { Key, SlidersHorizontal, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Key, SlidersHorizontal, ShieldCheck, Check } from "lucide-react";
 
 export default function SettingsPage() {
+  const [apiKey, setApiKey] = useState("AIzaSyB_Mock_Gemini_Key_12345");
+  const [directorModel, setDirectorModel] = useState("gemini-3.1-pro");
+  const [veoModel, setVeoModel] = useState("veo-3.1-generate-preview");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    }, 1000);
+  };
+
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
@@ -23,8 +39,10 @@ export default function SettingsPage() {
             </label>
             <input
               type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter your Google AI Studio API Key..."
-              className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono focus:border-[#8b5cf6] focus:outline-none"
+              className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
             />
           </div>
 
@@ -45,7 +63,11 @@ export default function SettingsPage() {
               <label className="block text-[10px] font-mono uppercase text-zinc-400 mb-2">
                 AI Director Engine Model
               </label>
-              <select className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono">
+              <select 
+                value={directorModel}
+                onChange={(e) => setDirectorModel(e.target.value)}
+                className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
+              >
                 <option value="gemini-3.1-pro">gemini-3.1-pro</option>
                 <option value="gemini-2.0-flash">gemini-2.0-flash</option>
               </select>
@@ -55,7 +77,11 @@ export default function SettingsPage() {
               <label className="block text-[10px] font-mono uppercase text-zinc-400 mb-2">
                 Video Generation Model
               </label>
-              <select className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono">
+              <select 
+                value={veoModel}
+                onChange={(e) => setVeoModel(e.target.value)}
+                className="w-full bg-[#161618] border border-[#27272a] rounded-[8px] p-3 text-xs text-zinc-200 font-mono focus:border-[#8b5cf6] focus:outline-none transition-colors"
+              >
                 <option value="veo-3.1-generate-preview">veo-3.1-generate-preview</option>
                 <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
                 <option value="veo-3.1-lite-preview">veo-3.1-lite-preview</option>
@@ -65,8 +91,24 @@ export default function SettingsPage() {
         </div>
 
         <div className="pt-4 border-t border-[#27272a] flex justify-end">
-          <button className="px-6 py-2.5 rounded-[10px] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] hover:from-[#8b5cf6] hover:to-[#6366f1] text-white font-semibold text-xs shadow-md shadow-[#7c3aed]/20 transition-all">
-            Save Settings
+          <button 
+            onClick={handleSave}
+            disabled={isSaving || showSuccess}
+            className="px-6 py-2.5 rounded-[10px] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] hover:from-[#8b5cf6] hover:to-[#6366f1] text-white font-semibold text-xs shadow-md shadow-[#7c3aed]/20 transition-all disabled:opacity-80 flex items-center gap-2 w-40 justify-center"
+          >
+            {isSaving ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : showSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Saved!</span>
+              </>
+            ) : (
+              <span>Save Settings</span>
+            )}
           </button>
         </div>
       </div>

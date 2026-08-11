@@ -73,6 +73,8 @@ export default function ProjectsPage() {
                     src={thumbUrl}
                     alt={project.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    priority={idx < 6}
                     className="object-cover group-hover:scale-105 transition-transform duration-500 opacity-80"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#161618] via-[#161618]/20 to-transparent opacity-90" />

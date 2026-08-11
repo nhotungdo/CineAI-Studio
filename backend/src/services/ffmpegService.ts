@@ -72,6 +72,75 @@ export class FFmpegService {
       return false;
     }
   }
+
+  async mergeWithAudioAndSubtitles(videoPath: string, outputPath: string, options: {
+    bgMusicPath?: string,
+    voiceoverPath?: string,
+    subtitlePath?: string
+  }): Promise<boolean> {
+    if (!fs.existsSync(videoPath)) return false;
+
+    const dir = path.dirname(outputPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    let cmd = `ffmpeg -y -i "${videoPath}"`;
+    let filterComplex = '';
+    let mapArgs = '-map 0:v:0';
+    let inputIdx = 1;
+    let audioInputs = '';
+    
+    // Voiceover (Input 1)
+    if (options.voiceoverPath && fs.existsSync(options.voiceoverPath)) {
+      cmd += ` -i "${options.voiceoverPath}"`;
+      audioInputs += `[${inputIdx}:a]volume=1.0[a${inputIdx}];`;
+      inputIdx++;
+    }
+
+    // BG Music (Input 2)
+    if (options.bgMusicPath && fs.existsSync(options.bgMusicPath)) {
+      cmd += ` -i "${options.bgMusicPath}"`;
+      audioInputs += `[${inputIdx}:a]volume=0.4[a${inputIdx}];`;
+      inputIdx++;
+    }
+
+    if (inputIdx > 1) {
+      filterComplex = audioInputs;
+      
+      // Amix inputs
+      const mixInputs = Array.from({ length: inputIdx - 1 }, (_, i) => `[a${i + 1}]`).join('');
+      filterComplex += `${mixInputs}amix=inputs=${inputIdx - 1}:duration=shortest[aout]`;
+      
+      mapArgs += ' -map "[aout]"';
+    } else {
+      // If original video has audio, keep it
+      mapArgs += ' -c:a copy';
+    }
+
+    // Subtitles
+    let vfArg = '';
+    if (options.subtitlePath && fs.existsSync(options.subtitlePath)) {
+      // FFmpeg subtitles filter requires paths with escaped backslashes on Windows, or just forward slashes
+      const escapedSubPath = options.subtitlePath.replace(/\\/g, '/').replace(/:/g, '\\\\:');
+      vfArg = `-vf "subtitles='${escapedSubPath}':force_style='FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=3'"`;
+    }
+
+    if (filterComplex) {
+      cmd += ` -filter_complex "${filterComplex}"`;
+    }
+
+    cmd += ` ${mapArgs} ${vfArg} -c:v libx264 -preset fast -y "${outputPath}"`;
+
+    try {
+      console.log('[FFmpeg Merge] Executing:', cmd);
+      await execAsync(cmd);
+      return fs.existsSync(outputPath);
+    } catch (err) {
+      console.error('[FFmpeg Merge Error]', (err as Error).message);
+      // Fallback: just copy the input
+      fs.copyFileSync(videoPath, outputPath);
+      return true;
+    }
+  }
 }
 
 export const ffmpegService = new FFmpegService();

@@ -3,6 +3,7 @@ import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
+import { SakuraBackground } from "@/components/layout/SakuraBackground";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -19,8 +20,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "✦ CineAI Studio - Sản Xuất Video Điện Ảnh AI Chuyên Nghiệp",
-  description: "Sản xuất video điện ảnh chuyên nghiệp với Gemini 3.1 Pro & Veo 3.1 AI Engine",
+  title: "🌸 Sakura AI Studio - Sản Xuất Video Điện Ảnh AI",
+  description: "Sản xuất video điện ảnh chuyên nghiệp với phong cách Nhật Bản & Veo 3.1",
 };
 
 export default function RootLayout({
@@ -30,7 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`dark ${inter.variable} ${outfit.variable}`}>
-      <body className="bg-[#09090b] text-zinc-100 antialiased min-h-screen font-sans">
+      <body className="bg-[var(--bg-primary)] text-zinc-100 antialiased min-h-screen font-sans relative">
+        <SakuraBackground />
         <Sidebar />
         <Navbar />
         <main className="pl-[240px] pt-16 min-h-screen">
