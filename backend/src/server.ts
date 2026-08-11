@@ -8,7 +8,6 @@ import { runWorkerLoop } from './worker/videoWorker.js';
 import * as videoCtrl from './controllers/videoController.js';
 import * as projectCtrl from './controllers/projectController.js';
 import * as charCtrl from './controllers/characterController.js';
-import * as creditCtrl from './controllers/creditController.js';
 import * as exportCtrl from './controllers/exportController.js';
 import * as directorCtrl from './controllers/directorController.js';
 
@@ -32,7 +31,7 @@ app.get('/', (req, res) => {
   res.json({
     name: 'CineAI Studio Node.js Express API',
     status: 'Healthy',
-    veoModel: process.env.VEO_MODEL || 'google/veo-3.1-fast',
+    veoModel: 'veo-2.0-generate-001 (Gemini API)',
     geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-pro'
   });
 });
@@ -41,6 +40,8 @@ app.get('/', (req, res) => {
 app.post('/api/Video/generate', videoCtrl.startGeneration);
 app.post('/api/Video/generate-multiscene', videoCtrl.startMultiSceneGeneration);
 app.get('/api/Video/jobs/:jobId', videoCtrl.getJobStatus);
+app.get('/api/Video/jobs/:jobId/progress', videoCtrl.getJobProgress);
+app.post('/api/Video/jobs/:jobId/trigger', videoCtrl.triggerJob);
 app.get('/api/Video/jobs', videoCtrl.getRecentJobs);
 app.get('/api/Video/operation/:operationId', videoCtrl.getOperationStatus);
 app.post('/api/Video/jobs/:jobId/retry-scene/:sceneId', videoCtrl.retryScene);
@@ -55,9 +56,6 @@ app.post('/api/Project', projectCtrl.createProject);
 app.get('/api/Character', charCtrl.getCharacters);
 app.post('/api/Character', charCtrl.createCharacter);
 
-// Credit Routes
-app.get('/api/Credit/user/:userId', creditCtrl.getUserCredit);
-app.get('/api/Credit/user', creditCtrl.getUserCredit);
 
 // Export Routes
 app.get('/api/Export', exportCtrl.getExports);

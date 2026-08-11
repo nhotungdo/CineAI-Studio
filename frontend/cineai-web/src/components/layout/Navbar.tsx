@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Bell, Sparkles } from "lucide-react";
+import { Bell } from "lucide-react";
 
 export function Navbar() {
   return (
@@ -14,15 +13,6 @@ export function Navbar() {
       </div>
 
       <div className="flex items-center gap-4">
-        {/* Credits Badge */}
-        <Link
-          href="/credits"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-[10px] bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 text-[#a78bfa] text-xs font-semibold hover:border-[#8b5cf6]/60 transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-[#a78bfa]" />
-          <span>Credits 1,240 ✦</span>
-        </Link>
-
         {/* Notifications */}
         <button className="p-2 rounded-[10px] bg-[#161618] border border-[#27272a] text-zinc-400 hover:text-white transition-all">
           <Bell className="w-4 h-4" />

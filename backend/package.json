@@ -10,6 +10,7 @@
     "dev": "tsc && node dist/server.js"
   },
   "dependencies": {
+    "@google/genai": "^2.16.0",
     "@google/generative-ai": "^0.24.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",

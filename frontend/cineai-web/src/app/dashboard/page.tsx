@@ -148,8 +148,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project, idx) => {
               const thumbUrl = CINEMATIC_THUMBNAILS[idx % CINEMATIC_THUMBNAILS.length];
+              const uniqueKey = `${project.id}-${idx}`;
               return (
-                <div key={project.id} className="studio-panel studio-panel-hover overflow-hidden transition-all group">
+                <div key={uniqueKey} className="studio-panel studio-panel-hover overflow-hidden transition-all group">
                   <div className="relative h-48 bg-[#09090b] overflow-hidden">
                     <Image
                       src={thumbUrl}

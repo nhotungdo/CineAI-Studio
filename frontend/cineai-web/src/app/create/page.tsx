@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Sparkles, Wand2, ArrowRight } from "lucide-react";
-import { orchestrateDirector, createProject, refinePrompt } from "@/lib/api";
+import { Sparkles, Wand2, ArrowRight, Loader2 } from "lucide-react";
+import { orchestrateDirector, createProject, refinePrompt, triggerVideoJob } from "@/lib/api";
 
 interface SceneResult {
   sceneNumber: number;
@@ -33,17 +33,23 @@ function CreateVideoForm() {
   const [aspectRatio, setAspectRatio] = useState("9:16");
 
   useEffect(() => {
+    let pendingVal = "";
     if (typeof window !== "undefined") {
       const pendingIdea = sessionStorage.getItem("cineai_pending_idea");
       if (pendingIdea) {
-        setIdea(pendingIdea);
+        pendingVal = pendingIdea;
         sessionStorage.removeItem("cineai_pending_idea");
-        return;
       }
     }
     const urlIdea = searchParams.get("idea");
-    if (urlIdea) {
-      setIdea(urlIdea);
+    if (!pendingVal && urlIdea) {
+      pendingVal = urlIdea;
+    }
+    if (pendingVal) {
+      const timer = setTimeout(() => {
+        setIdea(pendingVal);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [searchParams]);
   const [style, setStyle] = useState("Cinematic");
@@ -80,24 +86,32 @@ function CreateVideoForm() {
     if (!orchestrationResult) return;
     setIsSaving(true);
 
+    const scenes = (orchestrationResult.storyboard?.scenes || []).map((sc: SceneResult) => ({
+      sceneNumber: sc.sceneNumber,
+      duration: sc.duration,
+      prompt: sc.prompt,
+      cameraMovement: sc.cameraMovement,
+      lightingStyle: sc.lightingStyle,
+    }));
+
     const newProjectData = {
       title: orchestrationResult.title || "New AI Project",
       description: orchestrationResult.hook || idea,
-      aspectRatio: aspectRatio === "9:16" ? 1 : 0,
-      style: 0,
+      prompt: idea,
+      aspectRatio: aspectRatio,
+      style: style,
       targetDuration: duration,
-      scenes: (orchestrationResult.storyboard?.scenes || []).map((sc: SceneResult) => ({
-        sceneNumber: sc.sceneNumber,
-        duration: sc.duration,
-        prompt: sc.prompt,
-        cameraMovement: sc.cameraMovement,
-        lightingStyle: sc.lightingStyle,
-      })),
+      scenes,
     };
 
     const created = await createProject(newProjectData);
     setIsSaving(false);
+
     if (created && created.id) {
+      // Auto-trigger the video generation pipeline
+      if (created.jobId) {
+        await triggerVideoJob(created.jobId);
+      }
       router.push(`/projects/${created.id}`);
     } else {
       router.push(`/projects/22222222-2222-2222-2222-222222222222`);
@@ -242,8 +256,17 @@ function CreateVideoForm() {
                     disabled={isSaving}
                     className="px-4 py-1.5 rounded-[8px] bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] hover:from-[#8b5cf6] hover:to-[#6366f1] text-white font-semibold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-[#7c3aed]/20 disabled:opacity-50"
                   >
-                    <span>Mở Trong Studio Editor</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Đang Khởi Động Pipeline...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Mở Trong Studio Editor</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
                   </button>
                 </div>
 

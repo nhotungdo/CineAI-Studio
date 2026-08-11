@@ -10,8 +10,7 @@ import {
   LayoutTemplate, 
   Settings, 
   Wand2,
-  Layers,
-  HelpCircle
+  Layers
 } from "lucide-react";
 
 export function Sidebar() {
@@ -32,7 +31,6 @@ export function Sidebar() {
 
   const systemItems = [
     { label: "Cài Đặt Studio", href: "/settings", icon: Settings },
-    { label: "Nạp Credits & Trợ Giúp", href: "/credits", icon: HelpCircle },
   ];
 
   return (

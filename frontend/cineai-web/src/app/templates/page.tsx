@@ -4,7 +4,7 @@ import { LayoutTemplate, Plus } from "lucide-react";
 import Link from "next/link";
 
 export default function TemplatesPage() {
-  const templates: any[] = [];
+  const templates: Record<string, unknown>[] = [];
 
   return (
     <div className="space-y-8">

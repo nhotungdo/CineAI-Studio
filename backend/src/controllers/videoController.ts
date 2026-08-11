@@ -115,17 +115,21 @@ export async function getJobStatus(req: Request, res: Response) {
 
 export async function getRecentJobs(req: Request, res: Response) {
   const result = await query(
-    `SELECT id as "jobId", prompt, status, progress_percentage as "progressPercentage", video_path, final_video_path, created_at as "createdAt"
+    `SELECT id, prompt, status, progress_percentage, video_path, final_video_path, thumbnail_path, total_scenes, completed_scenes, created_at, completed_at
      FROM video_jobs ORDER BY created_at DESC LIMIT 20`
   );
 
   const jobs = result.rows.map((j) => ({
-    jobId: j.jobId,
+    jobId: j.id,
     prompt: j.prompt,
     status: j.status,
-    progressPercentage: j.progressPercentage,
-    videoUrl: j.final_video_path || j.video_path ? `/storage/videos/${path.basename(j.final_video_path || j.video_path)}` : null,
-    createdAt: j.createdAt
+    progressPercentage: j.progress_percentage || 0,
+    totalScenes: j.total_scenes || 0,
+    completedScenes: j.completed_scenes || 0,
+    finalVideoUrl: j.final_video_path ? `http://localhost:5000/storage/videos/${path.basename(j.final_video_path)}` : null,
+    thumbnailUrl: j.thumbnail_path ? `http://localhost:5000/storage/thumbnails/${path.basename(j.thumbnail_path)}` : null,
+    createdAt: j.created_at,
+    completedAt: j.completed_at,
   }));
 
   return res.status(200).json(jobs);
@@ -149,4 +153,89 @@ export async function retryMerge(req: Request, res: Response) {
   const jobId = String(req.params.jobId);
   await query(`UPDATE video_jobs SET status = 'Merging', error_message = NULL WHERE id = $1`, [jobId]);
   return res.status(200).json({ message: `Video job status reset to Merging for FFmpeg retry.`, jobId });
+}
+
+/**
+ * POST /api/Video/jobs/:jobId/trigger
+ * Resets a Queued/Failed job so the worker loop picks it up immediately.
+ */
+export async function triggerJob(req: Request, res: Response) {
+  const jobId = String(req.params.jobId);
+  const jobResult = await query(`SELECT id, status FROM video_jobs WHERE id = $1`, [jobId]);
+  if (jobResult.rows.length === 0) {
+    return res.status(404).json({ message: 'Job not found.' });
+  }
+
+  const job = jobResult.rows[0];
+  // If already running, just return current status
+  if (['Generating', 'Planning', 'Merging', 'Normalizing', 'Downloading'].includes(job.status)) {
+    return res.status(200).json({ message: 'Job already in progress.', jobId, status: job.status });
+  }
+
+  // Reset to Queued so worker picks it up
+  await query(
+    `UPDATE video_jobs SET status = 'Queued', progress_percentage = 0, error_message = NULL, started_at = NULL WHERE id = $1`,
+    [jobId]
+  );
+  return res.status(200).json({ message: 'Job triggered successfully. Worker will process shortly.', jobId });
+}
+
+/**
+ * GET /api/Video/jobs/:jobId/progress
+ * Returns detailed per-scene progress for real-time frontend polling.
+ */
+export async function getJobProgress(req: Request, res: Response) {
+  const jobId = String(req.params.jobId);
+  const jobResult = await query(`SELECT * FROM video_jobs WHERE id = $1`, [jobId]);
+
+  if (jobResult.rows.length === 0) {
+    return res.status(404).json({ message: 'Job not found.' });
+  }
+
+  const job = jobResult.rows[0];
+
+  let finalVideoUrl: string | null = null;
+  if (job.final_video_path) {
+    const fileName = path.basename(job.final_video_path);
+    finalVideoUrl = `http://localhost:5000/storage/videos/${fileName}`;
+  }
+
+  let thumbnailUrl: string | null = null;
+  if (job.thumbnail_path) {
+    const thumbName = path.basename(job.thumbnail_path);
+    thumbnailUrl = `http://localhost:5000/storage/thumbnails/${thumbName}`;
+  }
+
+  const scenesResult = await query(
+    `SELECT id, scene_number, duration, prompt, camera_movement, lighting_style, status, video_path, normalized_path, error_message
+     FROM scenes WHERE video_job_id = $1 ORDER BY scene_number ASC`,
+    [jobId]
+  );
+
+  const scenes = scenesResult.rows.map((s) => ({
+    sceneId: s.id,
+    sceneNumber: s.scene_number,
+    duration: s.duration,
+    prompt: s.prompt,
+    cameraMovement: s.camera_movement,
+    lightingStyle: s.lighting_style,
+    status: s.status,
+    errorMessage: s.error_message,
+    videoUrl: s.video_path ? `http://localhost:5000/storage/scenes/${path.basename(s.video_path)}` : null,
+  }));
+
+  return res.status(200).json({
+    jobId: job.id,
+    status: job.status,
+    progressPercentage: job.progress_percentage || 0,
+    totalScenes: job.total_scenes || 0,
+    completedScenes: job.completed_scenes || 0,
+    finalVideoUrl,
+    thumbnailUrl,
+    errorMessage: job.error_message,
+    createdAt: job.created_at,
+    startedAt: job.started_at,
+    completedAt: job.completed_at,
+    scenes,
+  });
 }

@@ -16,6 +16,22 @@ interface CharacterItem {
   referenceImages: string[];
 }
 
+interface CharacterApiItem {
+  id?: string;
+  name?: string;
+  age?: number;
+  gender?: string;
+  appearance?: string;
+  clothing?: string;
+  style?: string;
+  role?: string;
+  appearanceDescription?: string;
+  clothingStyle?: string;
+  referenceImages?: string[];
+  referenceImagesJson?: string;
+  [key: string]: unknown;
+}
+
 export default function CharactersPage() {
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +50,7 @@ export default function CharactersPage() {
       setIsLoading(true);
       const data = await fetchCharacters();
       if (Array.isArray(data)) {
-        const mapped = data.map((item: any) => {
+        const mapped: CharacterItem[] = data.map((item: CharacterApiItem) => {
           let refImgs: string[] = [];
           if (Array.isArray(item.referenceImages)) {
             refImgs = item.referenceImages;
@@ -48,11 +64,11 @@ export default function CharactersPage() {
           return {
             id: item.id || `char-${Date.now()}`,
             name: item.name || "Unnamed Character",
-            age: item.age || 25,
-            gender: item.gender || "Male",
-            appearance: item.appearance || "",
-            clothing: item.clothing || "",
-            style: item.style || "Cinematic Realistic",
+            age: typeof item.age === "number" ? item.age : 25,
+            gender: typeof item.gender === "string" ? item.gender : "Male",
+            appearance: typeof item.appearance === "string" ? item.appearance : (typeof item.appearanceDescription === "string" ? item.appearanceDescription : ""),
+            clothing: typeof item.clothing === "string" ? item.clothing : (typeof item.clothingStyle === "string" ? item.clothingStyle : ""),
+            style: typeof item.style === "string" ? item.style : "Cinematic Realistic",
             referenceImages: refImgs
           };
         });
